@@ -43,7 +43,8 @@ jobs:
           sudo ln -sf /usr/bin/ninja /usr/bin/ninja-build
 
       - name: Versão do vcpkg
-        run: echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
+        run: |
+          echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
 
       - name: Cache do vcpkg
         uses: actions/cache@v4
@@ -146,7 +147,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Versão do vcpkg
-        run: echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
+        run: |
+          echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
 
       - name: Cache do vcpkg
         uses: actions/cache@v4
