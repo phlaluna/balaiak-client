@@ -765,6 +765,13 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
         menu:addOption(tr('Trade with ...'), function()
             startTradeWith(lookThing)
         end)
+        -- Trade Bazar (site): só itens da mochila ou do inventário.
+        local bazaarPos = lookThing:getPosition()
+        if bazaarPos and bazaarPos.x == 0xffff then
+            menu:addOption('Trade Bazar', function()
+                startTradeBazar(lookThing)
+            end)
+        end
     end
 
     if lookThing then
@@ -2062,4 +2069,43 @@ function toggleFocus(value, reason)
     gameLeftPanel:setFocusable(value)
     gameRightExtraPanel:setFocusable(value)
     gameLeftExtraPanel:setFocusable(value)
+end
+
+
+-- Trade Bazar: anuncia o item no site (venda por Pix). Veja !bazar no servidor.
+function startTradeBazar(item)
+    if not item or not g_game.isOnline() then
+        return
+    end
+    local pos = item:getPosition()
+    if not pos or pos.x ~= 0xffff then
+        return
+    end
+    local itemId = item:getId()
+    local box = UIInputBox.create('Trade Bazar', function(price, duration)
+        price = tostring(price or ''):gsub('[Rr]%$', ''):gsub('%s', '')
+        local reais, cents = price:match('^(%d+)[,.](%d%d?)$')
+        if not reais then
+            reais, cents = price:match('^(%d+)$'), '0'
+        end
+        if not reais then
+            displayErrorBox('Trade Bazar', 'Pre\231o inv\225lido. Use s\243 n\250meros, por exemplo 25 ou 12,50.')
+            return
+        end
+        if #cents == 1 then
+            cents = cents .. '0'
+        end
+        -- O combo devolve a opção ({text = '7 dias', data = ...}), não o texto.
+        if type(duration) == 'table' then
+            duration = duration.text
+        end
+        local days = tonumber(tostring(duration or ''):match('%d+')) or 7
+        g_game.talk(string.format('!bazar %d.%s, %d, @%d,%d,%d,%d', tonumber(reais), cents, days,
+            pos.x, pos.y, pos.z, itemId))
+    end)
+    box:addLabel('Venda por Pix no site.')
+    box:addLabel('O item sai do personagem.')
+    box:addLineEdit('Pre\231o (R$):', '', 10)
+    box:addComboBox('Dura\231\227o:', '7 dias', '3 dias', '1 dia')
+    box:display('Anunciar', 'Cancelar')
 end

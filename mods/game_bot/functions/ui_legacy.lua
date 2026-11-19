@@ -35,7 +35,14 @@ context.addTab = function(name)
     return tab.tabPanel.content
   end
 
-  local newTab = context.tabs:addTab(name, g_ui.createWidget('BotPanel')).tabPanel.content
+  local panel = g_ui.createWidget('BotPanel')
+  local area = context.tabs.contentWidget
+  if area and area:getWidth() > 0 and area:getHeight() > 0 then
+    panel:setSize(area:getSize())
+  else
+    panel:setSize({width = 200, height = 400})
+  end
+  local newTab = context.tabs:addTab(name, panel).tabPanel.content
   context.tabs:setOn(true)
   for k, tab in pairs(context.tabs.tabs) do
     if string.len(tab:getText()) > 7 then

@@ -357,11 +357,13 @@ end
 
 function edit()
   local configs = g_resources.listDirectoryFiles("/bot", false, false)
-  editWindow.manager.upload.config:clearOptions()
+  editWindow.manager.export.config:clearOptions()
   for i=1,#configs do
-    editWindow.manager.upload.config:addOption(configs[i])
+    editWindow.manager.export.config:addOption(configs[i])
   end
-  editWindow.manager.download.config:setText("")
+  if not g_platform.isBrowser() then
+    editWindow:recursiveGetChildById("storageInfo"):setText("As configs ficam numa pasta do computador; os bot\245es abrem essa pasta.\nDepois de colocar uma config nela, saia e entre novamente no personagem.")
+  end
 
   editWindow:show()
   editWindow:focus()
@@ -401,6 +403,74 @@ function createDefaultConfigs()
             copyFilesRecursively("default_configs/" .. configName, targetDir)
         end
     end
+end
+
+
+-- Exportar/importar pelo navegador (patches/bot_config_files.py): a pagina
+-- le o pedido em /.webcmd e responde em /.webcmd-result.
+local webRequestEvent = nil
+local function webRequest(cmd, onResult)
+  removeEvent(webRequestEvent)
+  webRequestEvent = nil
+  if g_resources.fileExists("/.webcmd-result") then
+    g_resources.deleteFile("/.webcmd-result")
+  end
+  if not g_resources.writeFileContents("/.webcmd", cmd) then
+    return displayErrorBox("Configs do bot", "Não foi possível falar com a página do jogo.")
+  end
+  -- Importar espera a pessoa escolher o arquivo.
+  local deadline = g_clock.millis() + 10 * 60 * 1000
+  webRequestEvent = cycleEvent(function()
+    if g_resources.fileExists("/.webcmd-result") then
+      local res = g_resources.readFileContents("/.webcmd-result")
+      g_resources.deleteFile("/.webcmd-result")
+      removeEvent(webRequestEvent)
+      webRequestEvent = nil
+      onResult(res:split("\n"))
+    elseif g_clock.millis() > deadline then
+      removeEvent(webRequestEvent)
+      webRequestEvent = nil
+      if g_resources.fileExists("/.webcmd") then
+        g_resources.deleteFile("/.webcmd")
+      end
+    end
+  end, 300)
+end
+
+local function webError(title, res)
+  if res[1] == "cancel" then return end
+  displayErrorBox(title, res[2] or "Erro desconhecido.")
+end
+
+-- No computador as configs são uma pasta comum: os botões abrem a pasta.
+local function openBotFolder(title)
+  local dir = g_resources.getWriteDir() .. "bot"
+  g_platform.openDir(dir)
+  displayInfoBox(title, "As configs ficam na pasta:\n" .. dir ..
+    "\n\nPara levar uma config, copie a pasta dela. Para usar uma config,\ncoloque a pasta dela ali, saia e entre novamente no personagem.")
+end
+
+function exportConfigFile()
+  if not g_platform.isBrowser() then return openBotFolder("Exportar config") end
+  local option = editWindow.manager.export.config:getCurrentOption()
+  if not option or not option.text or option.text == "" then
+    return displayErrorBox("Exportar config", "Nenhuma config para exportar.")
+  end
+  webRequest("export\n" .. option.text, function(res)
+    if res[1] ~= "ok" then return webError("Exportar config", res) end
+    displayInfoBox("Exportar config", "A config \"" .. res[2] .. "\" foi baixada como " ..
+      res[2] .. ".zip (" .. res[3] .. " arquivos).")
+  end)
+end
+
+function importConfigFile(kind)
+  if not g_platform.isBrowser() then return openBotFolder("Importar config") end
+  webRequest("import\n" .. kind, function(res)
+    if res[1] ~= "ok" then return webError("Importar config", res) end
+    if editWindow:isVisible() then edit() end
+    displayInfoBox("Config importada", "A config \"" .. res[2] .. "\" foi importada (" .. res[3] ..
+      " arquivos).\n\nPara carregar a config, saia e entre novamente no personagem\ne escolha-a na lista do bot.")
+  end)
 end
 
 function uploadConfig()

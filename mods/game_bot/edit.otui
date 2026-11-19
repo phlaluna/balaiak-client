@@ -2,16 +2,16 @@ MainWindow
   id: editWindow
   !text: tr("Config editor & manager")
   @onEscape: self:hide()
-  size: 550 570
+  size: 550 290
   $mobile:
-    size: 550 240
+    size: 550 210
 
   Panel
     id: manager
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    height: 152
+    height: 118
 
     Label
       anchors.top: parent.top
@@ -20,7 +20,7 @@ MainWindow
       text-auto-resize: true
       text-align: center
       text-wrap: true
-      !text: tr("Config Manager\nYou can use config manager to share configs between different machines, especially smartphones. After you configure your config, you can upload it, then you'll get unique hash code which you can use on diffent machinge (for eg. mobile phone) to download it.")
+      !text: tr("Exportar e importar configs\nExporte uma config para guardar no computador ou levar para outro navegador. Importe um .zip exportado ou a pasta de uma config.")
 
     HorizontalSeparator
       anchors.top: prev.bottom
@@ -30,7 +30,7 @@ MainWindow
       height: 2
 
     Panel
-      id: upload
+      id: export
       anchors.top: prev.bottom
       anchors.left: parent.left
       anchors.right: parent.horizontalCenter
@@ -43,25 +43,14 @@ MainWindow
         anchors.right: parent.right
         text-auto-resize: true
         text-align: center
-        text-wrap: true
-        !text: tr("Upload config")
-
-      Label
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 7
-        text-auto-resize: true
-        text-align: center
-        text-wrap: true
-        !text: tr("Select config to upload")
+        !text: tr("Exportar config")
 
       ComboBox
         id: config
         anchors.top: prev.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        margin-top: 4
+        margin-top: 7
         margin-left: 20
         margin-right: 20
         text-offset: 3 0
@@ -71,14 +60,14 @@ MainWindow
         anchors.top: prev.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        !text: tr('Upload config')
+        !text: tr("Exportar .zip")
         margin-top: 4
         margin-left: 40
         margin-right: 40
-        @onClick: modules.game_bot.uploadConfig()
+        @onClick: modules.game_bot.exportConfigFile()
 
     Panel
-      id: download
+      id: import
       anchors.top: prev.top
       anchors.left: parent.horizontalCenter
       anchors.right: parent.right
@@ -90,38 +79,29 @@ MainWindow
         anchors.right: parent.right
         text-auto-resize: true
         text-align: center
-        text-wrap: true
-        !text: tr("Download config")
-
-      Label
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 7
-        text-auto-resize: true
-        text-align: center
-        text-wrap: true
-        !text: tr("Enter config hash code")
-
-      TextEdit
-        id: config
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        margin-left: 20
-        margin-right: 20
+        !text: tr("Importar config")
 
       Button
-        id: submit
+        id: zip
         anchors.top: prev.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        !text: tr('Download config')
+        !text: tr("Importar .zip")
+        margin-top: 7
+        margin-left: 40
+        margin-right: 40
+        @onClick: modules.game_bot.importConfigFile("zip")
+
+      Button
+        id: dir
+        anchors.top: prev.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        !text: tr("Importar pasta")
         margin-top: 4
         margin-left: 40
         margin-right: 40
-        @onClick: modules.game_bot.downloadConfig()
+        @onClick: modules.game_bot.importConfigFile("dir")
 
   HorizontalSeparator
     anchors.top: prev.bottom
@@ -135,76 +115,19 @@ MainWindow
     anchors.left: parent.left
     anchors.right: parent.right
     margin-top: 5
-    height: 330
+    height: 50
     $mobile:
       visible: false
 
     Label
+      id: storageInfo
       anchors.top: parent.top
       anchors.left: parent.left
       anchors.right: parent.right
       text-auto-resize: true
       text-align: center
       text-wrap: true
-      !text: tr("Bot configs are stored in:")
-
-    TextEdit
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.top: prev.bottom
-      height: 20
-      width: 400
-      margin-top: 5
-      editable: false
-      !text: g_resources.getWriteDir() .. "bot"
-      text-align: center
-
-    Button
-      id: documentationButton
-      !text: tr('Click here to open bot directory')
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.top: prev.bottom
-      margin-top: 5
-      width: 250
-      @onClick: g_platform.openDir(g_resources.getWriteDir():gsub("[/\\]+", "\\") .. "bot")
-
-    Label
-      margin-top: 5
-      anchors.top: prev.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      text-auto-resize: true
-      text-align: center
-      text-wrap: true
-      !text: tr("Every directory in bot directory is treated as different config.\nTo create new config just create new directory.")
-
-    Label
-      margin-top: 5
-      anchors.top: prev.bottom
-      anchors.horizontalCenter: parent.horizontalCenter
-      height: 175
-      image-source: configs.png
-      image-fixed-ratio: true
-      image-size: 500 175
-
-    Label
-      margin-top: 3
-      anchors.top: prev.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      text-auto-resize: true
-      text-align: center
-      text-wrap: true
-      !text: tr("Inside config directory put .lua and .otui files.\nEvery file will be loaded and executed in alphabetical order, .otui first and then .lua.")
-
-    Label
-      margin-top: 3
-      anchors.top: prev.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      text-auto-resize: true
-      text-align: center
-      text-wrap: true
-      !text: tr("To reload configs just press On and Off in bot window.\nTo learn more about bot click Tutorials button.")
+      !text: tr("As configs ficam guardadas neste navegador, não numa pasta do computador.\nPara usar em outro computador, exporte aqui e importe a config nele.\nDepois de importar, saia e entre novamente no personagem para carregar a config.")
 
   Button
     !text: tr('Documentation')
