@@ -46,6 +46,7 @@ case "$os" in
     copy_game_files "$app"
     cp "$bin" "$app/Balaiak-OT"
     chmod +x "$app/Balaiak-OT"
+    strip --strip-debug "$app/Balaiak-OT"  # tira os símbolos de depuração (RelWithDebInfo)
     tar -C "$stage" -czf "dist/$name-Linux.tar.gz" "$name"
     ;;
   windows)
@@ -60,6 +61,11 @@ case "$os" in
     cp -R "$bin" "$bundle"
     # No Mac o cliente procura init.lua em Contents/Resources.
     copy_game_files "$bundle/Contents/Resources"
+    plist="$bundle/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleName Balaiak OT" "$plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Balaiak OT" "$plist" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Balaiak OT" "$plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier club.smokebox.balaiak" "$plist"
     xattr -cr "$bundle"
     codesign --force --deep --sign - "$bundle"
     (cd "$stage" && ditto -c -k --keepParent "Balaiak OT.app" "$root/dist/$name-macOS.zip")
