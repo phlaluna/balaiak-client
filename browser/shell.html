@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>Loading</title>
+    <title>Balaiak OT</title>
     <style>
       body {
         margin: 0;
@@ -72,6 +72,589 @@
       oncontextmenu="event.preventDefault()"
       tabindex="0"
     ></canvas>
+    <!-- Balaiak OT: ajustes de celular e tela cheia (inserido por patches/apply.py) -->
+    <style>
+      #otc-fs {
+        position: fixed;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 4;
+        display: none;
+        padding: 8px 18px;
+        font: 600 22px/1 sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.55);
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+      }
+      #otc-bf {
+        position: fixed;
+        left: 50%;
+        top: 30%;
+        transform: translateX(-50%);
+        z-index: 5;
+        display: none;
+        width: 300px;
+        max-width: calc(100vw - 12px);
+        max-height: calc(100vh - 48px);
+        overflow: auto;
+        box-sizing: border-box;
+        padding: 12px;
+        font: 13px/1.4 sans-serif;
+        color: #eee;
+        background: rgba(20, 22, 30, 0.96);
+        border: 1px solid #555;
+        border-radius: 8px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+      }
+      #otc-bf h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      #otc-bf button {
+        font: 12px sans-serif;
+        padding: 4px 8px;
+        color: #fff;
+        background: #3a4560;
+        border: 1px solid #5a6a90;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #otc-bf button:hover {
+        background: #4a5880;
+      }
+      #otc-bf .acts {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      #otc-bf .msg {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #9fd09f;
+      }
+      #otc-bf .msg.err {
+        color: #f0a0a0;
+      }
+      #otc-bf .note {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #aaa;
+      }
+      #otc-bf .x {
+        float: right;
+        padding: 0 6px;
+      }
+    </style>
+    <button id="otc-fs" type="button">&#x26F6; Tela cheia</button>
+    <div id="otc-bf">
+      <button class="x" type="button" id="otc-bf-close" title="Fechar">&#x2715;</button>
+      <h3>Importar config do bot</h3>
+      <div>Clique no botão abaixo para escolher o arquivo.</div>
+      <div class="acts">
+        <button type="button" id="otc-bf-zip">Importar .zip</button>
+        <button type="button" id="otc-bf-dir">Importar pasta</button>
+      </div>
+      <input type="file" id="otc-bf-zip-in" accept=".zip,application/zip" hidden />
+      <input type="file" id="otc-bf-dir-in" webkitdirectory multiple hidden />
+      <div class="msg" id="otc-bf-msg"></div>
+    </div>
+    <script type="text/javascript">
+      var otcMobile = /iphone|ipod|ipad|android/i.test(navigator.userAgent);
+      // No celular o jogo é desenhado numa área maior que a tela e reduzido
+      // de volta: cabe mais interface e a imagem fica nítida em telas de alta
+      // densidade. A escala é escolhida para a interface ter ~1050 pontos de
+      // largura com o aparelho deitado, já contando a escala 1,5x que o
+      // cliente aplica no celular (ajustável em Opções > Interface > HUD Scale).
+      //
+      // Quem reduz é a moldura (iframe de index.html) em que esta página roda:
+      // o navegador converte os toques sozinho, e vale igual dentro e fora da
+      // tela cheia. Só se a página for aberta sem a moldura é que se usa a
+      // escala da viewport, que o Chrome do Android ignora em tela cheia.
+      var OTC_MOBILE_UI_WIDTH = 1050;
+      var OTC_MOBILE_HUD_SCALE = 1.5;
+      var otcFrame = null;
+      try {
+        otcFrame = window.frameElement;
+      } catch (e) {}
+      // A tela cheia é pedida para a página de fora quando há moldura.
+      var otcFsDoc = otcFrame ? window.parent.document : document;
+      if (otcMobile) {
+        var longSide = Math.max(screen.width, screen.height);
+        var s = longSide / (OTC_MOBILE_UI_WIDTH * OTC_MOBILE_HUD_SCALE);
+        s = Math.round(Math.min(1, Math.max(0.4, s)) * 100) / 100;
+        window.otcPageScale = s;
+        if (otcFrame) {
+          otcFrame.style.width = 100 / s + "%";
+          otcFrame.style.height = 100 / s + "%";
+          otcFrame.style.transformOrigin = "0 0";
+          otcFrame.style.transform = "scale(" + s + ")";
+        } else {
+          document.querySelector('meta[name="viewport"]').setAttribute(
+            "content",
+            "width=device-width, initial-scale=" + s + ", minimum-scale=" + s +
+              ", maximum-scale=" + s + ", user-scalable=no"
+          );
+        }
+      }
+      function otcIsFullscreen() {
+        return !!(otcFsDoc.fullscreenElement || otcFsDoc.webkitFullscreenElement);
+      }
+      function otcEnterFullscreen() {
+        var el = otcFsDoc.documentElement;
+        var req = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (!req || otcIsFullscreen()) return;
+        var done = req.call(el, { navigationUI: "hide" });
+        var lock = function () {
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock("landscape").catch(function () {});
+          }
+        };
+        if (done && done.then) done.then(lock).catch(function () {});
+        else lock();
+      }
+      (function () {
+        var btn = document.getElementById("otc-fs");
+        var started = false;
+        function refresh() {
+          var el = otcFsDoc.documentElement;
+          var can = el.requestFullscreen || el.webkitRequestFullscreen;
+          btn.style.display = otcMobile && started && can && !otcIsFullscreen() ? "block" : "none";
+        }
+        // touchend e click: o cliente cancela os toques na página, então o
+        // clique sintetizado pode não chegar.
+        ["touchend", "click"].forEach(function (type) {
+          btn.addEventListener(type, function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            otcEnterFullscreen();
+          });
+        });
+        otcFsDoc.addEventListener("fullscreenchange", refresh);
+        otcFsDoc.addEventListener("webkitfullscreenchange", refresh);
+        window.otcGameStarted = function () {
+          started = true;
+          if (otcMobile) otcEnterFullscreen();
+          setTimeout(refresh, 600);
+        };
+      })();
+
+      // O texto colado é do jogo, não da página: sem isto o navegador também
+      // o escreve no #title-text (editável, usado pelo teclado do celular),
+      // e ele aparece numa linha no canto superior esquerdo. preventDefault
+      // só cancela essa escrita; o cliente lê o texto no mesmo evento.
+      window.addEventListener("paste", function (ev) {
+        var t = ev.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+        ev.preventDefault();
+      }, true);
+      (function () {
+        var title = document.getElementById("title-text");
+        if (!title) return;
+        // Garantia para o que ainda chegar lá (arrastar texto, desfazer...).
+        title.addEventListener("input", function () {
+          if (title.textContent) title.textContent = "";
+        });
+      })();
+
+      // Mac: Cmd+V / Cmd+C / Cmd+X / Cmd+A nas caixas de texto do jogo.
+      // O cliente (compilado para o navegador) só entende esses atalhos com
+      // Ctrl, e o texto colado só chega a ele pelo evento "paste" do
+      // navegador, que no Mac vem do Cmd+V (Ctrl+V não gera "paste" lá).
+      // Então: o Cmd+V segue para o navegador (gera o "paste", que entrega o
+      // texto ao cliente) e, em seguida, o cliente recebe um Ctrl+V; os
+      // outros viram Ctrl+C/X/A. O cliente nunca vê a tecla V/C/X/A com o Cmd,
+      // o que também evita tecla "presa" (o Mac não manda o keyup delas).
+      (function () {
+        var isMac = /Mac|iPhone|iPad/i.test(navigator.platform || "") ||
+          /Mac OS X/i.test(navigator.userAgent);
+        if (!isMac) return;
+        var CODES = { v: "KeyV", c: "KeyC", x: "KeyX", a: "KeyA" };
+        var KEYCODES = { v: 86, c: 67, x: 88, a: 65 };
+        var waitingPaste = 0;
+
+        function send(type, code, key, keyCode, ctrl) {
+          window.dispatchEvent(new KeyboardEvent(type, {
+            code: code, key: key, keyCode: keyCode, which: keyCode,
+            ctrlKey: ctrl, bubbles: true, cancelable: true
+          }));
+        }
+        function ctrlCombo(letter) {
+          // Solta o Cmd no cliente (senão o atalho vira Ctrl+Meta+letra).
+          send("keyup", "MetaLeft", "Meta", 91, false);
+          send("keydown", "ControlLeft", "Control", 17, true);
+          send("keydown", CODES[letter], letter, KEYCODES[letter], true);
+          send("keyup", CODES[letter], letter, KEYCODES[letter], true);
+          send("keyup", "ControlLeft", "Control", 17, false);
+        }
+
+        // Fase de captura na janela, registrada antes dos ouvintes do cliente.
+        window.addEventListener("keydown", function (ev) {
+          if (!ev.isTrusted || !ev.metaKey || ev.ctrlKey || ev.altKey) return;
+          var letter = (ev.key || "").toLowerCase();
+          if (!CODES[letter] || ev.code !== CODES[letter]) return;
+          ev.stopImmediatePropagation();
+          if (letter !== "v") {
+            ev.preventDefault();
+            ctrlCombo(letter);
+            return;
+          }
+          // Sem preventDefault: o navegador dispara o "paste".
+          var id = ++waitingPaste;
+          setTimeout(function () {
+            if (waitingPaste !== id || !navigator.clipboard || !navigator.clipboard.readText) return;
+            // Não veio "paste" (foco fora do jogo): lê a área de transferência.
+            navigator.clipboard.readText().then(function (text) {
+              var dt = new DataTransfer();
+              dt.setData("text/plain", text);
+              document.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
+            }).catch(function () {});
+          }, 250);
+        }, true);
+
+        // Depois que o cliente guardou o texto (ouvinte dele no document),
+        // manda o Ctrl+V para a caixa de texto com o foco.
+        window.addEventListener("paste", function () {
+          if (!waitingPaste) return;
+          waitingPaste = 0;
+          setTimeout(function () { ctrlCombo("v"); }, 30);
+        });
+      })();
+
+      // Configs do bot: no navegador elas ficam no armazenamento da página
+      // (IndexedDB montado em /user; o cliente grava em /user/.otclient/,
+      // então as configs estão em /user/.otclient/bot/<config>), não numa
+      // pasta do computador. Os botões "Exportar .zip" e "Importar" da
+      // janela Edit do bot (patches/bot_config_files.py) gravam um pedido em
+      // <pasta de gravação>/.webcmd; esta página o executa (baixa a config
+      // como .zip ou abre a escolha de arquivo) e responde em .webcmd-result.
+      (function () {
+        var BOT_DIR = "/user/.otclient/bot";
+        var panel = document.getElementById("otc-bf");
+        var msg = document.getElementById("otc-bf-msg");
+        var zipIn = document.getElementById("otc-bf-zip-in");
+        var dirIn = document.getElementById("otc-bf-dir-in");
+
+        function say(text, isErr) {
+          msg.textContent = text;
+          msg.className = isErr ? "msg err" : "msg";
+        }
+        function exists(path) {
+          try { return FS.analyzePath(path).exists; } catch (e) { return false; }
+        }
+        function isDir(path) {
+          try { return FS.isDir(FS.stat(path).mode); } catch (e) { return false; }
+        }
+        function entries(path) {
+          return FS.readdir(path).filter(function (n) { return n !== "." && n !== ".."; });
+        }
+        // Pasta de gravação do cliente: /user/.<nome curto do app>/. Se o
+        // nome mudar, acha a pasta "bot" que existir em /user/*/.
+        function findBotDir() {
+          if (exists(BOT_DIR)) return;
+          try {
+            entries("/user").some(function (n) {
+              if (isDir("/user/" + n + "/bot")) { BOT_DIR = "/user/" + n + "/bot"; return true; }
+              return false;
+            });
+          } catch (e) {}
+        }
+        function mkdirs(path) {
+          var cur = "";
+          path.split("/").forEach(function (part) {
+            if (!part) return;
+            cur += "/" + part;
+            if (!exists(cur)) FS.mkdir(cur);
+          });
+        }
+        function removeTree(path) {
+          if (!exists(path)) return;
+          if (isDir(path)) {
+            entries(path).forEach(function (n) { removeTree(path + "/" + n); });
+            FS.rmdir(path);
+          } else {
+            FS.unlink(path);
+          }
+        }
+
+        // ---- .zip (sem biblioteca externa) ----
+        var CRC = (function () {
+          var t = new Uint32Array(256);
+          for (var n = 0; n < 256; n++) {
+            var c = n;
+            for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            t[n] = c >>> 0;
+          }
+          return t;
+        })();
+        function crc32(data) {
+          var c = 0xffffffff;
+          for (var i = 0; i < data.length; i++) c = CRC[(c ^ data[i]) & 0xff] ^ (c >>> 8);
+          return (c ^ 0xffffffff) >>> 0;
+        }
+        // Zip sem compressão (as configs são pequenas).
+        function makeZip(files) {
+          var enc = new TextEncoder();
+          var parts = [], central = [], offset = 0;
+          files.forEach(function (f) {
+            var name = enc.encode(f.name), data = f.data, crc = crc32(data);
+            var h = new DataView(new ArrayBuffer(30));
+            h.setUint32(0, 0x04034b50, true);
+            h.setUint16(4, 20, true);
+            h.setUint16(6, 0x0800, true); // nomes em UTF-8
+            h.setUint16(8, 0, true);
+            h.setUint16(10, 0, true);
+            h.setUint16(12, 0x21, true); // 1980-01-01
+            h.setUint32(14, crc, true);
+            h.setUint32(18, data.length, true);
+            h.setUint32(22, data.length, true);
+            h.setUint16(26, name.length, true);
+            h.setUint16(28, 0, true);
+            var c = new DataView(new ArrayBuffer(46));
+            c.setUint32(0, 0x02014b50, true);
+            c.setUint16(4, 20, true);
+            c.setUint16(6, 20, true);
+            c.setUint16(8, 0x0800, true);
+            c.setUint16(10, 0, true);
+            c.setUint16(12, 0, true);
+            c.setUint16(14, 0x21, true);
+            c.setUint32(16, crc, true);
+            c.setUint32(20, data.length, true);
+            c.setUint32(24, data.length, true);
+            c.setUint16(28, name.length, true);
+            c.setUint32(42, offset, true);
+            parts.push(h, name, data);
+            central.push(c, name);
+            offset += 30 + name.length + data.length;
+          });
+          var size = central.reduce(function (s, p) { return s + p.byteLength; }, 0);
+          var e = new DataView(new ArrayBuffer(22));
+          e.setUint32(0, 0x06054b50, true);
+          e.setUint16(8, files.length, true);
+          e.setUint16(10, files.length, true);
+          e.setUint32(12, size, true);
+          e.setUint32(16, offset, true);
+          return new Blob(parts.concat(central, [e]), { type: "application/zip" });
+        }
+        function inflate(data) {
+          if (typeof DecompressionStream === "undefined") {
+            return Promise.reject(new Error("este navegador não abre .zip compactado; use Importar pasta"));
+          }
+          var stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+          return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+        }
+        function readZip(buf) {
+          var u8 = new Uint8Array(buf), v = new DataView(buf);
+          var eocd = -1;
+          for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+            if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+          }
+          if (eocd < 0) return Promise.reject(new Error("arquivo não é um .zip válido"));
+          var count = v.getUint16(eocd + 10, true);
+          var p = v.getUint32(eocd + 16, true);
+          var dec = new TextDecoder();
+          var jobs = [];
+          for (var n = 0; n < count; n++) {
+            if (v.getUint32(p, true) !== 0x02014b50) return Promise.reject(new Error(".zip corrompido"));
+            var flags = v.getUint16(p + 8, true), method = v.getUint16(p + 10, true);
+            var csize = v.getUint32(p + 20, true);
+            var nlen = v.getUint16(p + 28, true), xlen = v.getUint16(p + 30, true), clen = v.getUint16(p + 32, true);
+            var local = v.getUint32(p + 42, true);
+            var name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+            p += 46 + nlen + xlen + clen;
+            if (name.slice(-1) === "/") continue;
+            if (flags & 1) return Promise.reject(new Error("o .zip tem senha"));
+            var start = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
+            var raw = u8.slice(start, start + csize);
+            if (method === 0) jobs.push(Promise.resolve({ name: name, data: raw }));
+            else if (method === 8) {
+              jobs.push((function (nm) {
+                return inflate(raw).then(function (d) { return { name: nm, data: d }; });
+              })(name));
+            } else return Promise.reject(new Error("formato de compressão não suportado em " + name));
+          }
+          return Promise.all(jobs);
+        }
+
+        // ---- importar / exportar ----
+        function cleanPath(p) {
+          var parts = p.replace(/\\/g, "/").split("/").filter(function (s) {
+            return s && s !== "." && s !== "..";
+          });
+          if (parts[0] === "__MACOSX") return null;
+          var base = parts[parts.length - 1] || "";
+          if (!base || base === ".DS_Store" || base.slice(0, 2) === "._") return null;
+          return parts;
+        }
+        function safeName(name) {
+          return name.replace(/[\/\\:*?"<>|]/g, "_").replace(/^\.+/, "").trim();
+        }
+        // files: [{path: [..partes..], data: Uint8Array}]; tira a pasta de
+        // cima se todos os arquivos estão dentro dela e usa o nome dela.
+        function install(files, fallbackName) {
+          files = files.filter(function (f) { return f.path; });
+          if (!files.length) throw new Error("nenhum arquivo encontrado");
+          var top = files[0].path[0];
+          var nested = files.every(function (f) { return f.path.length > 1 && f.path[0] === top; });
+          var name = safeName(nested ? top : fallbackName);
+          if (!name) throw new Error("nome de config inválido");
+          findBotDir();
+          var target = BOT_DIR + "/" + name;
+          if (exists(target)) {
+            if (!window.confirm('Já existe a config "' + name + '". Substituir?')) return null;
+            removeTree(target);
+          }
+          files.forEach(function (f) {
+            var rel = nested ? f.path.slice(1) : f.path;
+            var dir = target + (rel.length > 1 ? "/" + rel.slice(0, -1).join("/") : "");
+            mkdirs(dir);
+            FS.writeFile(target + "/" + rel.join("/"), f.data);
+          });
+          return { name: name, count: files.length };
+        }
+        function writeDir() {
+          findBotDir();
+          return BOT_DIR.replace(/\/bot$/, "");
+        }
+        // Resposta para o bot. Latin-1: é a codificação das fontes do cliente.
+        function reply(lines) {
+          var text = lines.join("\n"), bytes = new Uint8Array(text.length);
+          for (var i = 0; i < text.length; i++) {
+            var c = text.charCodeAt(i);
+            bytes[i] = c < 256 ? c : 63;
+          }
+          FS.writeFile(writeDir() + "/.webcmd-result", bytes);
+        }
+        function errText(e) {
+          return e && e.message ? e.message : String(e);
+        }
+
+        // Importação pedida pelo bot: só uma por vez.
+        var importing = false;
+        function finishImport(lines) {
+          if (!importing) return;
+          importing = false;
+          panel.style.display = "none";
+          reply(lines);
+        }
+        function importDone(r) {
+          finishImport(r ? ["ok", r.name, String(r.count)] : ["cancel"]);
+        }
+        function importFail(e) {
+          finishImport(["err", "Não deu para importar: " + errText(e)]);
+        }
+        function exportConfig(name) {
+          findBotDir();
+          var root = BOT_DIR + "/" + name, files = [];
+          if (!isDir(root)) throw new Error('a config "' + name + '" não existe');
+          (function walk(dir, rel) {
+            entries(dir).forEach(function (n) {
+              var full = dir + "/" + n;
+              if (isDir(full)) walk(full, rel + n + "/");
+              else files.push({ name: rel + n, data: FS.readFile(full) });
+            });
+          })(root, name + "/");
+          var url = URL.createObjectURL(makeZip(files));
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = name + ".zip";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+          return files.length;
+        }
+        function askFile(kind) {
+          var input = kind === "dir" ? dirIn : zipIn;
+          // A janela de escolha de arquivo só abre logo depois de um clique.
+          // O clique no botão do jogo costuma valer; se o navegador já não
+          // o considerar, mostra um botão da página para a pessoa clicar.
+          var ua = navigator.userActivation;
+          if (!ua || ua.isActive) input.click();
+          if (ua && !ua.isActive) {
+            say("");
+            panel.style.display = "block";
+          }
+        }
+        function handle(cmd) {
+          var parts = cmd.split("\n");
+          if (parts[0] === "export") {
+            try {
+              reply(["ok", parts[1], String(exportConfig(parts[1]))]);
+            } catch (e) {
+              reply(["err", "Não deu para exportar: " + errText(e)]);
+            }
+          } else if (parts[0] === "import") {
+            if (importing) finishImport(["cancel"]);
+            importing = true;
+            askFile(parts[1]);
+          } else {
+            reply(["err", "Pedido desconhecido: " + parts[0]]);
+          }
+        }
+        function poll() {
+          try {
+            var path = writeDir() + "/.webcmd";
+            if (!exists(path)) return;
+            var cmd = new TextDecoder("latin1").decode(FS.readFile(path));
+            FS.unlink(path);
+            handle(cmd);
+          } catch (e) {
+            console.error("[configs do bot]", e);
+          }
+        }
+
+        zipIn.addEventListener("change", function () {
+          var file = zipIn.files[0];
+          zipIn.value = "";
+          if (!file) return importDone(null);
+          say("Importando...");
+          file.arrayBuffer().then(readZip).then(function (items) {
+            importDone(install(items.map(function (it) {
+              return { path: cleanPath(it.name), data: it.data };
+            }), file.name.replace(/\.zip$/i, "")));
+          }).catch(importFail);
+        });
+        dirIn.addEventListener("change", function () {
+          var picked = Array.prototype.slice.call(dirIn.files);
+          dirIn.value = "";
+          if (!picked.length) return importDone(null);
+          say("Importando...");
+          Promise.all(picked.map(function (f) {
+            return f.arrayBuffer().then(function (b) {
+              return { path: cleanPath(f.webkitRelativePath || f.name), data: new Uint8Array(b) };
+            });
+          })).then(function (items) {
+            importDone(install(items, "config"));
+          }).catch(importFail);
+        });
+        // Fechou a janela de escolha sem escolher nada.
+        zipIn.addEventListener("cancel", function () { importDone(null); });
+        dirIn.addEventListener("cancel", function () { importDone(null); });
+        document.getElementById("otc-bf-zip").addEventListener("click", function () { zipIn.click(); });
+        document.getElementById("otc-bf-dir").addEventListener("click", function () { dirIn.click(); });
+        document.getElementById("otc-bf-close").addEventListener("click", function () {
+          importDone(null);
+        });
+        // No celular a página cancela os toques; o botão tocado vira clique.
+        Array.prototype.forEach.call(panel.querySelectorAll("button"), function (b) {
+          b.addEventListener("touchend", function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            b.click();
+          });
+        });
+        // Começa a atender o bot quando o jogo começa (armazenamento carregado).
+        var started = window.otcGameStarted;
+        window.otcGameStarted = function () {
+          started();
+          setInterval(poll, 300);
+        };
+      })();
+    </script>
     <script type="text/javascript">
       var canvas = document.getElementById("canvas");
       function reportRuntimeError(prefix, error) {
@@ -102,6 +685,7 @@
       function startGame() {
         document.getElementById("start").style.display = "none";
         callMain();
+        window.otcGameStarted();
         document.addEventListener("touchstart", function (ev) {
           ev.preventDefault();
           ev.stopPropagation();
@@ -200,6 +784,548 @@
       window.addEventListener("unhandledrejection", function (event) {
         reportRuntimeError("unhandledrejection", event.reason || "Promise rejected");
       });
+    </script>
+    <!-- Balaiak OT: tela de abertura (inserida por patches/apply.py) -->
+    <style>
+      #otc-splash {
+        --night: #0b1530;
+        --panel: #1f3263;
+        --line: #8a6a2c;
+        --gold: #f6d27a;
+        --amber: #e2a93a;
+        --text: #f7ecd4;
+        --dim: #c9b48c;
+        --wine: #7a1d1d;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        overflow: hidden;
+        color: var(--text);
+        font-family: Verdana, "Segoe UI", Roboto, sans-serif;
+        /* Arte do Balaiak (servida ao lado da página, webclient/server/splash-bg.jpg),
+           com o logo no alto e o centro escuro para o conteúdo. */
+        background: var(--night) url("splash-bg.jpg") center 30% / cover no-repeat;
+        transition: opacity 0.5s ease;
+      }
+      #otc-splash.otc-gone {
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* O conteúdo é ampliado no celular para compensar a página "afastada". */
+      #otc-splash .otc-stage {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 20px 24px;
+      }
+      /* O logo já está na arte: o nome em texto fica só para leitores de tela,
+         e o conteúdo desce para a área escura abaixo do logo. */
+      #otc-splash .otc-brand,
+      #otc-splash .otc-tagline {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      #otc-splash .otc-stage {
+        padding-top: 22vh;
+      }
+      #otc-splash.otc-short .otc-stage {
+        gap: 9px;
+        padding: 8px 20px 14px;
+        /* tela baixa (celular deitado): embaixo, para não cobrir o logo da arte */
+        justify-content: flex-end;
+      }
+      #otc-splash .otc-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      #otc-splash .otc-brand svg {
+        width: 44px;
+        height: 44px;
+        flex: none;
+      }
+      #otc-splash h1 {
+        margin: 0;
+        font-family: "Cinzel Decorative", "Trajan Pro", Georgia, "Times New Roman", serif;
+        font-size: 52px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        background: linear-gradient(180deg, #fff3b0 0%, #f6c94a 45%, #c9861d 75%, #8a5310 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-stroke: 1.5px #5a2e05;
+        filter: drop-shadow(0 3px 0 #3b1f04) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+      }
+      #otc-splash h1 span {
+        font-size: 0.55em;
+        vertical-align: 0.45em;
+      }
+      #otc-splash .otc-tagline {
+        margin: -10px 0 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gold);
+        text-shadow: 0 2px 0 #3b1f04;
+      }
+      #otc-splash.otc-short .otc-tagline {
+        margin-top: -4px;
+        font-size: 12px;
+      }
+      #otc-splash.otc-short h1 {
+        font-size: 34px;
+      }
+      #otc-splash.otc-short .otc-brand svg {
+        width: 32px;
+        height: 32px;
+      }
+      /* cantos em degraus de pixel */
+      #otc-splash .otc-launch {
+        --s: 6px;
+        box-sizing: border-box;
+        width: min(430px, 100%);
+        padding: 14px 20px 12px;
+        text-align: center;
+        background: var(--line);
+        clip-path: polygon(
+          0 calc(2 * var(--s)), var(--s) calc(2 * var(--s)), var(--s) var(--s), calc(2 * var(--s)) var(--s), calc(2 * var(--s)) 0,
+          calc(100% - 2 * var(--s)) 0, calc(100% - 2 * var(--s)) var(--s), calc(100% - var(--s)) var(--s), calc(100% - var(--s)) calc(2 * var(--s)), 100% calc(2 * var(--s)),
+          100% calc(100% - 2 * var(--s)), calc(100% - var(--s)) calc(100% - 2 * var(--s)), calc(100% - var(--s)) calc(100% - var(--s)), calc(100% - 2 * var(--s)) calc(100% - var(--s)), calc(100% - 2 * var(--s)) 100%,
+          calc(2 * var(--s)) 100%, calc(2 * var(--s)) calc(100% - var(--s)), var(--s) calc(100% - var(--s)), var(--s) calc(100% - 2 * var(--s)), 0 calc(100% - 2 * var(--s))
+        );
+        position: relative;
+      }
+      #otc-splash .otc-launch::before {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        background: var(--panel);
+        clip-path: inherit;
+        z-index: -1;
+      }
+      #otc-splash .otc-launch > * {
+        position: relative;
+      }
+      #otc-splash.otc-short .otc-launch {
+        padding: 8px 18px 7px;
+      }
+      #otc-splash .otc-launch p {
+        margin: 0;
+      }
+      #otc-splash .otc-launch-title {
+        font-size: 14px;
+        color: var(--dim);
+      }
+      #otc-splash .otc-clock {
+        display: flex;
+        justify-content: center;
+        gap: 22px;
+        margin: 6px 0 6px;
+      }
+      #otc-splash.otc-short .otc-clock {
+        margin: 2px 0 3px;
+      }
+      #otc-splash .otc-clock div {
+        min-width: 58px;
+      }
+      #otc-splash .otc-clock b {
+        display: block;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 40px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--amber);
+        font-variant-numeric: tabular-nums;
+      }
+      #otc-splash.otc-short .otc-clock b {
+        font-size: 30px;
+      }
+      #otc-splash .otc-clock small {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      #otc-splash .otc-when {
+        font-size: 15px;
+      }
+      #otc-splash .otc-when small {
+        color: var(--dim);
+        font-size: 13px;
+      }
+      #otc-splash .otc-cal {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 4px 8px;
+        font-size: 14px;
+        color: var(--gold);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      #otc-splash.otc-short .otc-cal {
+        margin-top: 2px;
+        padding: 2px 8px;
+      }
+      #otc-splash a:focus-visible,
+      #otc-splash button:focus-visible {
+        outline: 2px solid var(--amber);
+        outline-offset: 3px;
+      }
+      #otc-splash .otc-load {
+        width: min(760px, 100%);
+        text-align: center;
+      }
+      #otc-splash .otc-status {
+        margin: 0 0 8px;
+        font-size: 19px;
+        font-variant-numeric: tabular-nums;
+      }
+      #otc-splash.otc-short .otc-status {
+        margin-bottom: 5px;
+        font-size: 16px;
+      }
+      /* barra feita de tiles: cada um acende quando o trecho carrega */
+      #otc-splash .otc-tiles {
+        display: grid;
+        grid-template-columns: repeat(32, 1fr);
+        gap: 3px;
+        height: 16px;
+      }
+      #otc-splash.otc-short .otc-tiles {
+        height: 12px;
+      }
+      #otc-splash .otc-tiles i {
+        background: rgba(10, 18, 42, 0.75);
+        border: 1px solid rgba(216, 164, 65, 0.25);
+        transition: background 0.2s;
+      }
+      #otc-splash .otc-tiles i.otc-on {
+        background: var(--gold);
+      }
+      #otc-splash .otc-tiles i.otc-head {
+        background: #fff3b0;
+      }
+      #otc-splash .otc-step {
+        margin: 7px 0 0;
+        min-height: 18px;
+        font-size: 14px;
+        color: var(--dim);
+      }
+      #otc-splash.otc-short .otc-step {
+        margin-top: 4px;
+      }
+      #otc-play {
+        display: none;
+        margin: 0 auto;
+        padding: 11px 44px;
+        font: inherit;
+        font-size: 20px;
+        font-weight: 700;
+        font-family: Georgia, "Times New Roman", serif;
+        letter-spacing: 0.04em;
+        color: #4a2a05;
+        background: linear-gradient(180deg, #ffe08a, #e2a93a);
+        border: 2px solid #9a6a12;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 0 #7a520e, 0 8px 18px rgba(0, 0, 0, 0.4);
+      }
+      #otc-play:hover {
+        filter: brightness(1.07);
+      }
+      #otc-play:active {
+        transform: translateY(3px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 0 #7a520e;
+      }
+      #otc-splash.otc-short #otc-play {
+        padding: 8px 38px;
+        font-size: 18px;
+      }
+      #otc-splash.otc-ready #otc-play {
+        display: block;
+      }
+      #otc-splash.otc-ready .otc-tiles,
+      #otc-splash.otc-ready .otc-step {
+        display: none;
+      }
+      #otc-splash .otc-tip {
+        box-sizing: border-box;
+        width: min(760px, 100%);
+        padding: 8px 14px;
+        border: 2px solid #d9c191;
+        border-left: 6px solid var(--wine);
+        border-radius: 6px;
+        background: #f7ecd4;
+        color: #3a2914;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+      }
+      #otc-splash.otc-short .otc-tip {
+        padding: 5px 12px;
+      }
+      #otc-splash .otc-tip strong {
+        display: block;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 16px;
+        color: var(--wine);
+      }
+      #otc-splash .otc-tip span {
+        display: block;
+        font-size: 14px;
+        color: #5a4528;
+      }
+      #otc-splash .otc-dots {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+      #otc-splash .otc-dots i {
+        width: 8px;
+        height: 8px;
+        transform: rotate(45deg);
+        background: rgba(246, 210, 122, 0.3);
+      }
+      #otc-splash .otc-dots i.otc-on {
+        background: var(--gold);
+      }
+      /* o botão Start original fica por baixo; quem inicia é o "Jogar" */
+      #start {
+        visibility: hidden;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #otc-splash,
+        #otc-splash .otc-tiles i {
+          transition: none;
+        }
+      }
+    </style>
+    <div id="otc-splash" role="status" aria-live="polite">
+      <div class="otc-stage">
+        <div class="otc-brand">
+          <svg viewBox="0 0 24 28" aria-hidden="true">
+            <path fill="#1f3263" stroke="#d8a441" stroke-width="1.6" d="M12 1 22 5v8c0 6.5-4.3 11.6-10 14-5.7-2.4-10-7.5-10-14V5z" />
+            <path fill="#f6d27a" d="M7 9h10l-1.5 2H13v8h-2v-8H8.5z" />
+            <path fill="#e2a93a" d="M10.5 20h3l-1.5 3z" />
+          </svg>
+          <h1 id="otc-name">Balaiak <span>OT</span></h1>
+        </div>
+        <p class="otc-tagline">Baiak 8.60 · Servidor brasileiro</p>
+
+        <div class="otc-launch" id="otc-launch" hidden>
+          <p class="otc-launch-title">Lançamento oficial em</p>
+          <div class="otc-clock">
+            <div><b id="otc-d">0</b><small>dias</small></div>
+            <div><b id="otc-h">00</b><small>horas</small></div>
+            <div><b id="otc-m">00</b><small>minutos</small></div>
+            <div><b id="otc-s">00</b><small>segundos</small></div>
+          </div>
+          <p class="otc-when"><span id="otc-date"></span> <small>horário de Brasília</small></p>
+          <a class="otc-cal" id="otc-cal" href="#" download="balaiak-lancamento.ics">Marcar no calendário</a>
+        </div>
+
+        <div class="otc-load">
+          <p class="otc-status" id="otc-status">Preparando o jogo...</p>
+          <div class="otc-tiles" id="otc-tiles" aria-hidden="true"></div>
+          <p class="otc-step" id="otc-step">Conectando</p>
+          <button id="otc-play" type="button">Jogar</button>
+        </div>
+
+        <div class="otc-tip">
+          <strong id="otc-tip-title"></strong>
+          <span id="otc-tip-text"></span>
+        </div>
+        <div class="otc-dots" id="otc-dots" aria-hidden="true"></div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      (function () {
+        // ---- o que editar ----
+        var SERVER_NAME = "Balaiak OT";
+        (function () {
+          var parts = SERVER_NAME.split(" ");
+          var el = document.getElementById("otc-name");
+          el.textContent = parts.shift();
+          if (parts.length) {
+            var small = document.createElement("span");
+            small.textContent = parts.join(" ");
+            el.appendChild(document.createTextNode(" "));
+            el.appendChild(small);
+          }
+        })();
+        // Data e hora do lançamento, no horário de Brasília (-03:00).
+        // Vazio = sem contagem regressiva (ex.: "2026-12-20T19:00:00-03:00").
+        var LAUNCH_AT = "";
+        var SITE = location.origin.replace(/^https?:\/\//, "");
+        var TIPS = [
+          ["Jogue de onde estiver", "O mesmo personagem no computador e no celular, direto pelo navegador."],
+          ["Ainda não tem conta?", "Crie a sua em " + SITE + " — dá para entrar com a conta Google."],
+          ["Baiak clássico 8.60", "As vocações, magias e criaturas da versão 8.60, sem instalar nada."],
+          ["Powergamers e streamers", "No site você vê quem mais upou hoje e quem está ao vivo na Twitch."],
+          ["Prefere o cliente?", "Baixe o OTClient na página de Download do site e entre em " + SITE + "."],
+        ];
+        // ----------------------
+
+        var splash = document.getElementById("otc-splash");
+        var stage = splash.querySelector(".otc-stage");
+        var statusEl = document.getElementById("otc-status");
+        var stepEl = document.getElementById("otc-step");
+        var tilesEl = document.getElementById("otc-tiles");
+        var TILES = 32;
+        for (var i = 0; i < TILES; i++) tilesEl.appendChild(document.createElement("i"));
+
+        // Ajuste ao tamanho da tela. No celular a página está "afastada"
+        // (window.otcPageScale < 1), então o conteúdo é ampliado de volta.
+        function fit() {
+          var k = 1 / (window.otcPageScale || 1);
+          splash.classList.toggle("otc-short", window.innerHeight / k < 520);
+          // Se ainda assim não couber na altura (celular deitado com a barra
+          // do navegador), encolhe o conjunto até caber.
+          stage.style.transform = "";
+          stage.style.width = "100%";
+          stage.style.height = "auto";
+          var natural = stage.offsetHeight;
+          var room = window.innerHeight / k;
+          if (natural > room) k = (k * room) / natural;
+          stage.style.transformOrigin = "0 0";
+          stage.style.transform = k === 1 ? "" : "scale(" + k + ")";
+          stage.style.width = 100 / k + "%";
+          stage.style.height = 100 / k + "%";
+        }
+        fit();
+        window.addEventListener("resize", fit);
+
+        function setProgress(pct, status, step) {
+          pct = Math.max(0, Math.min(100, pct));
+          var lit = Math.round((pct / 100) * TILES);
+          var cells = tilesEl.children;
+          for (var i = 0; i < TILES; i++) {
+            cells[i].className = i < lit ? (i === lit - 1 && pct < 100 ? "otc-on otc-head" : "otc-on") : "";
+          }
+          if (status) statusEl.textContent = status;
+          if (step !== undefined) stepEl.textContent = step;
+        }
+        setProgress(2);
+
+        // ---- contagem regressiva ----
+        var launch = new Date(LAUNCH_AT);
+        var launchBox = document.getElementById("otc-launch");
+        var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+        function tick() {
+          var left = Math.floor((launch - Date.now()) / 1000);
+          if (!(left > 0)) {
+            if (!launchBox.hidden) { launchBox.hidden = true; fit(); }
+            return;
+          }
+          if (launchBox.hidden) { launchBox.hidden = false; fit(); }
+          document.getElementById("otc-d").textContent = Math.floor(left / 86400);
+          document.getElementById("otc-h").textContent = pad(Math.floor((left % 86400) / 3600));
+          document.getElementById("otc-m").textContent = pad(Math.floor((left % 3600) / 60));
+          document.getElementById("otc-s").textContent = pad(left % 60);
+        }
+        if (!isNaN(launch)) {
+          var fmt = new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "America/Sao_Paulo", day: "numeric", month: "long", year: "numeric",
+          });
+          var hour = new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "America/Sao_Paulo", hour: "numeric", minute: "2-digit", hour12: false,
+          }).format(launch).replace(":00", "h").replace(":", "h");
+          document.getElementById("otc-date").textContent = fmt.format(launch) + ", " + hour;
+          var stamp = function (d) { return d.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, ""); };
+          var ics = [
+            "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//" + SERVER_NAME + "//PT", "BEGIN:VEVENT",
+            "UID:lancamento@" + SERVER_NAME.toLowerCase(), "DTSTAMP:" + stamp(new Date()),
+            "DTSTART:" + stamp(launch), "DTEND:" + stamp(new Date(launch.getTime() + 3600000)),
+            "SUMMARY:Lançamento do " + SERVER_NAME, "URL:" + location.origin + "/",
+            "END:VEVENT", "END:VCALENDAR",
+          ].join("\r\n");
+          document.getElementById("otc-cal").href = "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+          tick();
+          setInterval(tick, 1000);
+        }
+
+        // ---- dicas ----
+        var dots = document.getElementById("otc-dots");
+        TIPS.forEach(function () { dots.appendChild(document.createElement("i")); });
+        var tip = 0;
+        function showTip() {
+          document.getElementById("otc-tip-title").textContent = TIPS[tip][0];
+          document.getElementById("otc-tip-text").textContent = TIPS[tip][1];
+          for (var i = 0; i < dots.children.length; i++) dots.children[i].className = i === tip ? "otc-on" : "";
+        }
+        showTip();
+        fit();
+        var tipTimer = setInterval(function () {
+          tip = (tip + 1) % TIPS.length;
+          showTip();
+        }, 5000);
+
+        // ---- ligação com o carregamento do cliente ----
+        var playing = false;
+        function close() {
+          if (splash.classList.contains("otc-gone")) return;
+          setProgress(100, "Tudo pronto", "");
+          splash.classList.add("otc-gone");
+          clearInterval(tipTimer);
+          setTimeout(function () { splash.style.display = "none"; }, 600);
+        }
+
+        var origStatus = Module.setStatus;
+        Module.setStatus = function (text) {
+          origStatus(text);
+          var m = /Downloading data\.\.\. \((\d+)\/(\d+)\)/.exec(text || "");
+          if (m) {
+            var done = Number(m[1]), total = Number(m[2]) || 1;
+            var pct = Math.round((done / total) * 100);
+            var mb = function (b) { return (b / 1048576).toFixed(0); };
+            setProgress(5 + pct * 0.85, "Baixando o jogo... " + pct + "%", mb(done) + " de " + mb(total) + " MB");
+          } else if ((text || "").indexOf("Running...") !== -1 && !playing) {
+            setProgress(92, "Jogo carregado");
+            splash.classList.add("otc-ready");
+            fit();
+            document.getElementById("otc-play").focus();
+          }
+        };
+
+        // O cliente avisa no log quando a interface terminou de montar.
+        var origPrint = Module.print;
+        Module.print = function () {
+          origPrint.apply(this, arguments);
+          var line = Array.prototype.slice.call(arguments).join(" ");
+          if (playing && line.indexOf("Startup done") !== -1) close();
+        };
+
+        var origError = window.reportRuntimeError;
+        window.reportRuntimeError = function (prefix, error) {
+          origError(prefix, error);
+          if (prefix === "abort" || prefix === "window.onerror") {
+            splash.classList.remove("otc-ready");
+            statusEl.textContent = "O jogo não abriu";
+            stepEl.textContent = "Recarregue a página. Se continuar, use um navegador atualizado.";
+          }
+        };
+
+        document.getElementById("otc-play").addEventListener("click", function () {
+          if (playing) return;
+          playing = true;
+          splash.classList.remove("otc-ready");
+          fit();
+          setProgress(96, "Abrindo o jogo...", "Carregando a interface");
+          startGame();
+          // rede de segurança caso o aviso do cliente não chegue
+          setTimeout(close, 15000);
+        });
+      })();
     </script>
     {{{ SCRIPT }}}
   </body>
