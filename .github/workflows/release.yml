@@ -2,7 +2,8 @@ name: Release Balaiak OT
 
 # Compila o cliente para Windows, Linux e macOS e publica os pacotes prontos
 # para jogar numa release do GitHub.
-#   - tag v* (ex.: git tag v1.0.0 && git push origin v1.0.0): cria a release;
+#   - tag v* (ex.: git tag v1.0.0 && git push origin v1.0.0): cria a release
+#     com Windows e Linux; o macOS entra nela quando terminar;
 #   - "Run workflow" na aba Actions: só compila e guarda os pacotes como
 #     artefatos (para testar antes de lançar).
 # Os arquivos Tibia.dat/Tibia.spr 8.60 não ficam no código: vêm da release
@@ -140,7 +141,11 @@ jobs:
 
   macos:
     name: macOS
-    runs-on: macos-15
+    # macos-14 também é Apple Silicon (arm64); o grupo do macos-15 vinha
+    # cancelando jobs por falta de máquina.
+    runs-on: macos-14
+    permissions:
+      contents: write
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 3
     steps:
@@ -195,10 +200,24 @@ jobs:
           path: dist/Balaiak-OT-macOS.zip
           if-no-files-found: error
 
+      # A release sai com Windows e Linux sem esperar o Mac (os runners de
+      # Mac do GitHub às vezes ficam sem máquina); o pacote do Mac entra
+      # nela aqui, quando ficar pronto.
+      - name: Enviar para a release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release upload "$GITHUB_REF_NAME" dist/Balaiak-OT-macOS.zip --clobber
+
   release:
     name: Publicar release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows, macos]
+    needs: [linux, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
