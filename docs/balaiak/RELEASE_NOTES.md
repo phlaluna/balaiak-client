@@ -1,4 +1,4 @@
-Cliente do **Balaiak OT** (8.60) já configurado para `otserv.smokebox.club`.
+Cliente do **Balaiak OT** (8.60) já configurado para `balaiak.servegame.com`.
 
 | Sistema | Arquivo |
 |---|---|
@@ -8,6 +8,6 @@ Cliente do **Balaiak OT** (8.60) já configurado para `otserv.smokebox.club`.
 
 Os apps não são assinados: no Windows clique em *Mais informações → Executar assim mesmo*; no Mac, na primeira vez, clique com o botão direito no app → *Abrir*.
 
-Crie sua conta em https://otserv.smokebox.club. Prefere não instalar nada? Jogue no navegador: https://otserv.smokebox.club/jogar/
+Crie sua conta em https://balaiak.servegame.com. Prefere não instalar nada? Jogue no navegador: https://balaiak.servegame.com/jogar/
 
 Veja as mudanças desta versão nos commits desde a release anterior.

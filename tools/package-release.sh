@@ -65,7 +65,7 @@ case "$os" in
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Balaiak OT" "$plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Balaiak OT" "$plist" 2>/dev/null \
       || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Balaiak OT" "$plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier club.smokebox.balaiak" "$plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.servegame.balaiak" "$plist"
     xattr -cr "$bundle"
     codesign --force --deep --sign - "$bundle"
     (cd "$stage" && ditto -c -k --keepParent "Balaiak OT.app" "$root/dist/$name-macOS.zip")
