@@ -1,0 +1,34 @@
+Balaiak OT - cliente do jogo
+============================
+
+Servidor: otserv.smokebox.club (porta 7171, versão 8.60)
+Site: https://otserv.smokebox.club  (crie sua conta lá)
+
+Como jogar
+----------
+Windows: extraia o .zip e abra "Balaiak-OT.exe".
+  Se o Windows avisar "O Windows protegeu o computador", clique em
+  "Mais informações" > "Executar assim mesmo" (o programa não é assinado).
+
+Linux: extraia o .tar.gz e rode ./Balaiak-OT
+  (precisa de um sistema recente, como Ubuntu 24.04 ou mais novo).
+
+macOS (Apple Silicon, M1 ou mais novo): extraia o .zip e arraste
+  "Balaiak OT.app" para Aplicativos. Na primeira vez, clique com o botão
+  direito no app > Abrir > Abrir (o app não é assinado pela Apple).
+  Se ainda assim o macOS bloquear, rode no Terminal:
+    xattr -cr "/Applications/Balaiak OT.app"
+
+Entre com a conta e a senha criadas no site.
+
+Configs do bot
+--------------
+Ficam na pasta de dados do cliente (o botão "Exportar"/"Importar" na janela
+Edit do bot abre essa pasta).
+
+Código e sugestões
+------------------
+https://github.com/phlaluna/balaiak-client
+Baseado no OTClient Redemption (https://github.com/mehah/otclient, licença MIT).
+Tibia é marca registrada da CipSoft GmbH. Este projeto não tem afiliação com a
+CipSoft GmbH.

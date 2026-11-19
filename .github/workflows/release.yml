@@ -1,0 +1,218 @@
+name: Release Balaiak OT
+
+# Compila o cliente para Windows, Linux e macOS e publica os pacotes prontos
+# para jogar numa release do GitHub.
+#   - tag v* (ex.: git tag v1.0.0 && git push origin v1.0.0): cria a release;
+#   - "Run workflow" na aba Actions: só compila e guarda os pacotes como
+#     artefatos (para testar antes de lançar).
+# Os arquivos Tibia.dat/Tibia.spr 8.60 não ficam no código: vêm da release
+# "assets-860" deste repositório (veja tools/package-release.sh).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Dependências do sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf autoconf-archive automake ccache gcc-14 g++-14 \
+            libgl1-mesa-dev libglu1-mesa-dev libltdl-dev libtool libtool-bin libx11-dev \
+            libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev linux-libc-dev make \
+            ninja-build perl pkg-config
+          sudo ln -sf /usr/bin/ninja /usr/bin/ninja-build
+
+      - name: Versão do vcpkg
+        run: echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
+
+      - name: Cache do vcpkg
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-linux-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-linux-
+
+      - name: CCache
+        uses: hendrikmuhs/ccache-action@v1.2.23
+        with:
+          max-size: "1G"
+          key: ccache-release-linux
+
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Compilar
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: linux-release
+          buildPreset: linux-release
+          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF']"
+
+      - name: Empacotar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/package-release.sh linux build/linux-release/bin/otclient
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Balaiak-OT-Linux
+          path: dist/Balaiak-OT-Linux.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    runs-on: windows-2025-vs2026
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}\.sccache
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Versão do vcpkg
+        shell: pwsh
+        run: |
+          $json = Get-Content vcpkg.json -Raw | ConvertFrom-Json
+          "VCPKG_COMMIT=$($json.'builtin-baseline')" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Remove o MySQL do runner (conflita com o vcpkg)
+        shell: pwsh
+        run: Remove-Item -Recurse -Force C:\mysql* -ErrorAction SilentlyContinue
+
+      - name: Cache do vcpkg
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-windows-
+
+      - name: SCCache
+        uses: hendrikmuhs/ccache-action@v1.2.23
+        with:
+          max-size: "1G"
+          variant: "sccache"
+          key: ccache-release-windows
+
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - name: Compilar
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: windows-release
+          buildPreset: windows-release
+          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DOTCLIENT_BUILD_TESTS=OFF']"
+
+      - name: Empacotar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/package-release.sh windows build/windows-release/bin
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Balaiak-OT-Windows
+          path: dist/Balaiak-OT-Windows.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    runs-on: macos-15
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 3
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Versão do vcpkg
+        run: echo "VCPKG_COMMIT=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')" >> "$GITHUB_ENV"
+
+      - name: Cache do vcpkg
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-macos-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-macos-
+
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: "3.12"
+
+      - uses: lukka/run-vcpkg@v11
+        env:
+          VCPKG_PYTHON3: ${{ steps.python.outputs.python-path }}
+        with:
+          vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+
+      - uses: lukka/get-cmake@v4.3.4
+
+      - name: Compilar
+        run: |
+          cmake -G Ninja -S . -B build-macos \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx \
+            -DTOGGLE_BIN_FOLDER=ON \
+            -DOPTIONS_ENABLE_IPO=OFF \
+            -DOTCLIENT_BUILD_TESTS=OFF \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG"
+          cmake --build build-macos --target otclient
+
+      - name: Empacotar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/package-release.sh macos build-macos/bin/OTClient.app
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Balaiak-OT-macOS
+          path: dist/Balaiak-OT-macOS.zip
+          if-no-files-found: error
+
+  release:
+    name: Publicar release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Criar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Balaiak OT ${GITHUB_REF_NAME}" \
+            --notes-file docs/balaiak/RELEASE_NOTES.md \
+            --latest
