@@ -141,9 +141,10 @@ jobs:
 
   macos:
     name: macOS
-    # macos-14 também é Apple Silicon (arm64); o grupo do macos-15 vinha
-    # cancelando jobs por falta de máquina.
-    runs-on: macos-14
+    # macos-15 (Apple Silicon). A imagem macos-14 arm64 não existe mais no
+    # GitHub; se faltar máquina, rode de novo só este job: ele envia o
+    # pacote para a release que já saiu com Windows e Linux.
+    runs-on: macos-15
     permissions:
       contents: write
     env:
