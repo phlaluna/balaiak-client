@@ -1,8 +1,8 @@
 Balaiak OT - cliente do jogo
 ============================
 
-Servidor: otserv.smokebox.club (porta 7171, versão 8.60)
-Site: https://otserv.smokebox.club  (crie sua conta lá)
+Servidor: balaiak.servegame.com (porta 7171, versão 8.60)
+Site: https://balaiak.servegame.com  (crie sua conta lá)
 
 Como jogar
 ----------

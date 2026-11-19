@@ -101,7 +101,7 @@ end
 -- No navegador o host é ignorado (browser/ws-rewrite.js manda tudo para a
 -- ponte WebSocket da mesma origem).
 Servers_init = {
-    ["otserv.smokebox.club"] = { port = 7171, protocol = 860, httpLogin = false }
+    ["balaiak.servegame.com"] = { port = 7171, protocol = 860, httpLogin = false }
 }
 Services.clientAssets.enabled = false
 
