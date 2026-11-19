@@ -125,7 +125,10 @@ jobs:
         with:
           configurePreset: windows-release
           buildPreset: windows-release
-          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DOTCLIENT_BUILD_TESTS=OFF']"
+          # Release (e não o RelWithDebInfo do preset): só nele o executável é
+          # ligado como app de janela (/SUBSYSTEM:windows, src/CMakeLists.txt),
+          # sem o terminal preto aberto atrás do jogo.
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DOTCLIENT_BUILD_TESTS=OFF']"
 
       - name: Empacotar
         shell: bash
