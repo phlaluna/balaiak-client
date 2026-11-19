@@ -67,7 +67,10 @@ function reloadMainPanelSizes()
                         if store_count > 0 then
                             store_height = store_count * PANEL_CONSTANTS.MULTI_STORE_HEIGHT + (store_count - 1) * 2
                         end
-                        local combined_height = store_height + math.max(options_height, specials_height)
+                        -- Opções/Sair começam abaixo do botão de aumentar/encolher
+                        local specials_top = math.max(store_height, PANEL_CONSTANTS.MULTI_STORE_HEIGHT)
+                        local combined_height = math.max(store_height + options_height,
+                            specials_top + specials_height)
                         local extra_height = PANEL_CONSTANTS.HEIGHT_EXTRA_ONPANEL
                         if store_count >= 2 then
                             extra_height = extra_height - (store_count - 1) * 5
@@ -278,7 +281,7 @@ function toggleExtendedViewButtons(extended)
         local specialChildren = specialsPanel:getChildren()
         for _, button in ipairs(specialChildren) do
             if not button:isDestroyed() then
-                button.originalPanel = "specials"
+                button.originalPanel = "store"
                 rightGamePanel:addChild(button)
             end
         end
@@ -290,8 +293,8 @@ function toggleExtendedViewButtons(extended)
             if not button:isDestroyed() then
                 if button.originalPanel == "options" then
                     optionsPanel:addChild(button)
-                elseif button.originalPanel == "specials" then
-                    specialsPanel:addChild(button)
+                elseif button.originalPanel == "store" then
+                    specialsPanel:addChild(button) -- (é o painel da loja)
                 end
             end
         end

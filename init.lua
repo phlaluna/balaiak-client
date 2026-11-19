@@ -97,7 +97,15 @@ if ENABLE_SERVERS then
     }
 end
 
-g_app.setName("OTClient - Redemption");
+-- Balaiak OT: servidor único, a tela de login mostra só conta e senha.
+-- No navegador o host é ignorado (browser/ws-rewrite.js manda tudo para a
+-- ponte WebSocket da mesma origem).
+Servers_init = {
+    ["otserv.smokebox.club"] = { port = 7171, protocol = 860, httpLogin = false }
+}
+Services.clientAssets.enabled = false
+
+g_app.setName("Balaiak OT");
 g_app.setCompactName("otclient");
 g_app.setOrganizationName("otcr");
 

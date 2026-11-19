@@ -19,7 +19,7 @@ local function onGameEnd()
 
     g_sounds.stopAll()
     if modules.client_options and modules.client_options.getOption('soundAnthem') then
-        musicChannel:enqueue(musicFilename, 3)
+        -- sem musica de abertura (patches/cliente_visual.py)
     end
 end
 
@@ -29,7 +29,7 @@ function setMusic(filename)
     if not g_game.isOnline() then
         musicChannel:stop()
         if modules.client_options and modules.client_options.getOption('soundAnthem') then
-            musicChannel:enqueue(musicFilename, 3)
+            -- sem musica de abertura (patches/cliente_visual.py)
         end
     end
 end
@@ -42,7 +42,7 @@ function reloadMusic()
     if not g_game.isOnline() then
         musicChannel:stop()
         if modules.client_options and modules.client_options.getOption('soundAnthem') then
-            musicChannel:enqueue(musicFilename, 3)
+            -- sem musica de abertura (patches/cliente_visual.py)
         end
     end
 end
@@ -50,7 +50,7 @@ end
 function startup()
     if musicChannel then
         if modules.client_options and modules.client_options.getOption('soundAnthem') then
-            musicChannel:enqueue(musicFilename, 3)
+            -- sem musica de abertura (patches/cliente_visual.py)
         end
     end
 

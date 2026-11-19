@@ -1,7 +1,7 @@
 dofile 'neededtranslations'
 
 -- private variables
-local defaultLocaleName = 'en'
+local defaultLocaleName = 'pt'
 local installedLocales
 local currentLocale
 
@@ -76,15 +76,6 @@ function init()
         pdebug('Using configured locale: ' .. userLocaleName)
     else
         setLocale(defaultLocaleName)
-        if g_app.hasUpdater() then
-            connect(g_app, {
-                onUpdateFinished = createWindow,
-            })
-        else
-            connect(g_app, {
-                onRun = createWindow,
-            })
-        end
     end
 
     ProtocolGame.registerExtendedOpcode(ExtendedIds.Locale, onExtendedLocales)

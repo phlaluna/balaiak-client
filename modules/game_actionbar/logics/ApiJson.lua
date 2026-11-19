@@ -11,6 +11,16 @@ local state = {
 local DEFAULT_SETTINGS_FILE = "/settings/clientoptions.json"
 local DEFAULT_OPTIONS_FILE = "/modules/game_actionbar/json/cipsoft-default-options-minimal.json"
 
+-- Cada personagem tem o próprio arquivo (barras de ações, hotkeys, chat).
+local CHARACTER_SETTINGS_DIR = "/settings/characters/"
+local function getCharacterSettingsFile()
+    local name = g_game.getCharacterName()
+    if not name or name == "" then
+        return DEFAULT_SETTINGS_FILE
+    end
+    return CHARACTER_SETTINGS_DIR .. name:gsub("[^%w%-_ ]", "_") .. ".json"
+end
+
 local SAVED_TOP_LEVEL_KEYS = {
     chatOptions = true,
     hotkeyOptions = true,
@@ -534,7 +544,38 @@ function ApiJson.saveData()
         g_resources.makeDir("/settings/")
     end
 
-    g_resources.writeFileContents(DEFAULT_SETTINGS_FILE, result)
+    local file = state.file or DEFAULT_SETTINGS_FILE
+    if state.savedFile == file and state.savedData == result then
+        return -- nada mudou desde a última gravação
+    end
+    if file ~= DEFAULT_SETTINGS_FILE and not g_resources.directoryExists(CHARACTER_SETTINGS_DIR) then
+        g_resources.makeDir(CHARACTER_SETTINGS_DIR)
+    end
+    if g_resources.writeFileContents(file, result) then
+        state.savedFile, state.savedData = file, result
+    end
+end
+
+-- Salva sozinho enquanto o personagem está online (o navegador não
+-- avisa o cliente quando a aba é fechada).
+local autosaveEvent = nil
+function ApiJson.startAutosave()
+    if autosaveEvent then
+        return
+    end
+    autosaveEvent = cycleEvent(function()
+        ApiJson.saveData()
+        g_settings.save()
+    end, 5000)
+end
+
+function ApiJson.stopAutosave()
+    if autosaveEvent then
+        removeEvent(autosaveEvent)
+        autosaveEvent = nil
+    end
+    ApiJson.saveData()
+    g_settings.save()
 end
 
 function ApiJson.createDefaultSettings()
@@ -558,12 +599,26 @@ function ApiJson.refreshState()
 end
 
 function ApiJson.bootstrap()
+    -- trocou de personagem: carrega a configuração do novo
+    local file = getCharacterSettingsFile()
+    if state.file ~= file then
+        if state.array and state.file then
+            ApiJson.saveData() -- guarda o personagem anterior
+        end
+        state.file = file
+        state.array = nil
+        state.actionBarMappingsIndex = nil
+        state.bootstrapComplete = false
+    end
+
     if state.bootstrapComplete then
         return true
     end
 
     if not state.array then
-        if not ApiJson.loadData(DEFAULT_SETTINGS_FILE) then
+        -- primeiro login do personagem: parte da configuração geral
+        if not ApiJson.loadData(file)
+            and (file == DEFAULT_SETTINGS_FILE or not ApiJson.loadData(DEFAULT_SETTINGS_FILE)) then
             ApiJson.createDefaultSettings()
         end
     end

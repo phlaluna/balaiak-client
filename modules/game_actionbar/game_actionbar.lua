@@ -380,6 +380,7 @@ end
 --- Handles game start event
 function ActionBarController:onGameStart()
     onCreateActionBars()
+    ApiJson.startAutosave()
     
     -- Ensure fresh cache
     if clearHotkeyCache then clearHotkeyCache() end
@@ -404,6 +405,7 @@ function ActionBarController:onGameStart()
 end
 
 function ActionBarController:onGameEnd()
+    ApiJson.stopAutosave()
     isLoaded = false
     cleanupMultiActionState()
     spellGroupCooldownCache = {}

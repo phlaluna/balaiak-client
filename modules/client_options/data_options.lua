@@ -726,7 +726,7 @@ return {
     battleSoundCreatureSubChannelsNoisesDeath = true,
     battleSoundCreatureSubChannelsAttacksAndSpells = true,
     soundAnthem = {
-        value = true,
+        value = false,
         action = function(value, options, controller, panels, extraWidgets)
             if modules.client and modules.client.reloadMusic then
                 modules.client.reloadMusic()
